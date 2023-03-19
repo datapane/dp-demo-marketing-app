@@ -7,6 +7,9 @@ import altair as alt
 from mlxtend.frequent_patterns import apriori
 from mlxtend.frequent_patterns import association_rules
 
+import calendar_heatmap # switch to calendar_heatmap component
+
+
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -115,6 +118,9 @@ def plot_value_counts(series, title, scale="linear", bar_color="#5A5BC1"):
 
     return fig
 
+def plot_calendar_heatmap(df_calmap):
+    df, year, last_sample_date = calendar_heatmap.wrangle_df(df_calmap, year=2023)
+    return calendar_heatmap.plot_heatmap("Orders", df, legend=True, color_scheme="cividis")
 
 def to_unordered_list(items):
     return f"""<ul style="margin:0;padding-left:20">{''.join([f'<li>{item}</li>' for item in items])}</ul>"""
