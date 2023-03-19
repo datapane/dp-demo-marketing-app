@@ -1,20 +1,16 @@
-import pandas as pd
-import datapane as dp
-import folium
-import locale
 import datetime as datetime
-from folium import plugins
-import altair as alt
-from mlxtend.frequent_patterns import apriori
-from mlxtend.frequent_patterns import association_rules
+import locale
+import warnings
 
+import altair as alt
+import folium
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
+from folium import plugins
+from mlxtend.frequent_patterns import apriori, association_rules
 
 import calendar_heatmap  # switch to calendar_heatmap component
-
-
-import warnings
 
 warnings.filterwarnings("ignore")
 
@@ -252,10 +248,18 @@ def cohort_analysis(df_orders_window):
     retention.index = retention.index.strftime("%Y-%m")
 
     retention_fig = plt.figure(figsize=(16, 10))
-    plt.title("Retention Rate in percentage:- Monthly Cohorts", fontsize=14)
-    sns.heatmap(retention, annot=True, fmt=".0%", cmap="cividis_r", vmin=0.0, vmax=0.6)
-    plt.ylabel("Cohort Month")
-    plt.xlabel("Cohort Index")
+    plt.rc('font', size=20) 
+    plt.title("Retention Rate in percentage: Monthly Cohorts",)
+    sns.heatmap(
+        retention,
+        annot=True,
+        fmt=".0%",
+        cmap="cividis_r",
+        vmin=0.0,
+        vmax=0.6,
+    )
+    plt.ylabel("Cohort Month",)
+    plt.xlabel("Cohort Index",)
     plt.yticks(rotation=360)
     plt.close()
 
@@ -271,13 +275,19 @@ def cohort_analysis(df_orders_window):
     average_standard_cost.index = average_standard_cost.index.strftime("%Y-%m")
 
     avg_order_fig = plt.figure(figsize=(16, 10))
-    plt.title("Average Order Total: Monthly Cohorts", fontsize=14)
+    plt.title("Average Order Total: Monthly Cohorts")
     sns.heatmap(
-        average_standard_cost, annot=True, vmin=0.0, vmax=60, cmap="cividis_r", fmt="g"
+        average_standard_cost,
+        annot=True,
+        vmin=0.0,
+        vmax=60,
+        cmap="cividis_r",
+        fmt="g",
     )
     plt.ylabel("Cohort Month")
     plt.xlabel("Cohort Index")
     plt.yticks(rotation=360)
+    plt.xticks(fontsize=20)
     plt.close()
 
-    return dp.Group(dp.Plot(retention_fig), dp.Plot(avg_order_fig), columns=1)
+    return retention_fig, avg_order_fig
