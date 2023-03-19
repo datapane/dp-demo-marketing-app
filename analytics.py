@@ -2,12 +2,16 @@ import pandas as pd
 import datapane as dp
 import folium
 import locale
+import datetime as datetime
 from folium import plugins
 import altair as alt
 from mlxtend.frequent_patterns import apriori
 from mlxtend.frequent_patterns import association_rules
 
-import calendar_heatmap # switch to calendar_heatmap component
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import calendar_heatmap  # switch to calendar_heatmap component
 
 
 import warnings
@@ -118,9 +122,13 @@ def plot_value_counts(series, title, scale="linear", bar_color="#5A5BC1"):
 
     return fig
 
+
 def plot_calendar_heatmap(df_calmap):
     df, year, last_sample_date = calendar_heatmap.wrangle_df(df_calmap, year=2023)
-    return calendar_heatmap.plot_heatmap("Orders", df, legend=True, color_scheme="cividis")
+    return calendar_heatmap.plot_heatmap(
+        "Orders", df, legend=True, color_scheme="cividis"
+    )
+
 
 def to_unordered_list(items):
     return f"""<ul style="margin:0;padding-left:20">{''.join([f'<li>{item}</li>' for item in items])}</ul>"""
@@ -129,7 +137,7 @@ def to_unordered_list(items):
 def frequent_product_combinations(df_items_window):
     one_hot_encoded = (
         pd.get_dummies(df_items_window["Lineitem name"]).groupby("Name").sum()
-    )
+    ).clip(upper=1)
 
     # filter for only orders with 2 or more items
     one_hot_encoded_filtered = one_hot_encoded[one_hot_encoded.sum(axis=1) >= 2]
@@ -137,6 +145,7 @@ def frequent_product_combinations(df_items_window):
     frequent_itemsets = apriori(
         one_hot_encoded_filtered, min_support=0.025, use_colnames=True
     ).sort_values("support", ascending=False)
+
     assoc_rules = (
         association_rules(frequent_itemsets, metric="lift", min_threshold=1)
         .sort_values("lift", ascending=False)
@@ -160,9 +169,9 @@ def frequent_product_combinations(df_items_window):
         frequent_combinations["support"] * 100, 2
     )
 
-    frequent_combinations = frequent_combinations.drop(["support"], axis=1).reset_index(
-        drop=True
-    ).head(5)
+    frequent_combinations = (
+        frequent_combinations.drop(["support"], axis=1).reset_index(drop=True).head(5)
+    )
 
     frequent_combinations.index = frequent_combinations.index + 1
 
@@ -176,18 +185,99 @@ def frequent_product_combinations(df_items_window):
 
     frequent_combinations.format(na_rep="MISS", precision=2)
 
-    cell_hover = { 
-        'selector': 'td:hover',
-        'props': [('background-color', '#ffffb3')]
-    }
+    row_hover = {"selector": "tr:hover", "props": [("background-color", "#9AE8FF")]}
     index_names = {
-        'selector': '.index_name',
-        'props': 'font-style: italic; color: darkgrey; font-weight:normal;'
+        "selector": ".index_name",
+        "props": "font-style: italic; color: darkgrey; font-weight:normal;",
     }
     headers = {
-        'selector': 'th:not(.index_name)',
-        'props': 'background-color: #4340B1; color: white;'
+        "selector": "th:not(.index_name)",
+        "props": "background-color: #4340B1; color: white;",
     }
-    frequent_combinations.set_table_styles([cell_hover, index_names, headers])
+    frequent_combinations.set_table_styles([row_hover, index_names, headers])
 
     return frequent_combinations
+
+
+def get_month(x):
+    return datetime.datetime(x.year, x.month, 1)
+
+
+def cohort_analysis(df_orders_window):
+    df_orders_cohort = df_orders_window
+
+    df_orders_cohort["order_month"] = df_orders_cohort["Created at"].apply(get_month)
+
+    grouping = df_orders_cohort.groupby("Cust_ID")["order_month"]
+
+    df_orders_cohort["cohort_month"] = grouping.transform("min")
+
+    def get_date_int(df, column):
+        year = df[column].dt.year
+        month = df[column].dt.month
+        day = df[column].dt.day
+        return year, month, day
+
+    # Getting the integers for date parts from the `InvoiceDay` column
+    transcation_year, transaction_month, _ = get_date_int(
+        df_orders_cohort, "order_month"
+    )
+
+    # Getting the integers for date parts from the `CohortDay` column
+    cohort_year, cohort_month, _ = get_date_int(df_orders_cohort, "cohort_month")
+
+    #  Get the  difference in years
+    years_diff = transcation_year - cohort_year
+
+    # Calculate difference in months
+    months_diff = transaction_month - cohort_month
+
+    df_orders_cohort["cohort_index"] = years_diff * 12 + months_diff + 1
+
+    # Counting daily active user from each chort
+    grouping = df_orders_cohort.groupby(["cohort_month", "cohort_index"])
+
+    # Counting number of unique customer Id's falling in each group of CohortMonth and CohortIndex
+    cohort_data = grouping["Cust_ID"].apply(pd.Series.nunique)
+    cohort_data = cohort_data.reset_index()
+
+    # Assigning column names to the dataframe created above
+    cohort_counts = cohort_data.pivot(
+        index="cohort_month", columns="cohort_index", values="Cust_ID"
+    )
+
+    ### Retention rate
+    cohort_sizes = cohort_counts.iloc[:, 0]
+    retention = cohort_counts.divide(cohort_sizes, axis=0)
+    retention.index = retention.index.strftime("%Y-%m")
+
+    retention_fig = plt.figure(figsize=(16, 10))
+    plt.title("Retention Rate in percentage:- Monthly Cohorts", fontsize=14)
+    sns.heatmap(retention, annot=True, fmt=".0%", cmap="cividis_r", vmin=0.0, vmax=0.6)
+    plt.ylabel("Cohort Month")
+    plt.xlabel("Cohort Index")
+    plt.yticks(rotation=360)
+    plt.close()
+
+    ### Average order total monthly cohort
+    grouping = df_orders_cohort.groupby(["cohort_month", "cohort_index"])
+    cohort_data = grouping["Total"].mean()
+    cohort_data = cohort_data.reset_index()
+    average_order = cohort_data.pivot(
+        index="cohort_month", columns="cohort_index", values="Total"
+    )
+
+    average_standard_cost = average_order.round(1)
+    average_standard_cost.index = average_standard_cost.index.strftime("%Y-%m")
+
+    avg_order_fig = plt.figure(figsize=(16, 10))
+    plt.title("Average Order Total: Monthly Cohorts", fontsize=14)
+    sns.heatmap(
+        average_standard_cost, annot=True, vmin=0.0, vmax=60, cmap="cividis_r", fmt="g"
+    )
+    plt.ylabel("Cohort Month")
+    plt.xlabel("Cohort Index")
+    plt.yticks(rotation=360)
+    plt.close()
+
+    return dp.Group(dp.Plot(retention_fig), dp.Plot(avg_order_fig), columns=1)
