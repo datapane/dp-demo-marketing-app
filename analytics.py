@@ -1,9 +1,11 @@
 import datetime as datetime
 import locale
+import typing as t
 import warnings
 
 import altair as alt
 import folium
+import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -16,13 +18,18 @@ alt.data_transformers.enable("default", max_rows=None)
 locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
 
 
-def set_timezones(df, cols):
+def set_timezones(df: pd.DataFrame, cols: t.List[str]) -> None:
     for col in cols:
         df[col] = pd.to_datetime(df[col], utc=True, errors="coerce")
         df[col].dt.tz_convert("US/Pacific")
 
 
-def get_window(df, date_col, window_start, window_end):
+def get_window(
+    df: pd.DataFrame,
+    date_col: str,
+    window_start: datetime.datetime,
+    window_end: datetime.datetime,
+) -> t.Tuple[pd.DataFrame, pd.DataFrame]:
     window = df[(df[date_col] > window_start) & (df[date_col] < window_end)]
     previous_period_window = df[
         (df[date_col] > window_start - (window_end - window_start))
@@ -31,7 +38,7 @@ def get_window(df, date_col, window_start, window_end):
     return window, previous_period_window
 
 
-def summary_stats(df_orders, df_customers):
+def summary_stats(df_orders: pd.DataFrame, df_customers: pd.DataFrame) -> pd.DataFrame:
     stats = {}
     stats["orders"] = len(df_orders)
     stats["sales"] = len(df_orders[df_orders["Financial Status"] == "paid"])
@@ -45,11 +52,11 @@ def summary_stats(df_orders, df_customers):
 
 
 def get_summary_stats(
-    df_orders_window,
-    df_customers_window,
-    df_orders_window_previous,
-    df_customers_window_previous,
-):
+    df_orders_window: pd.DataFrame,
+    df_customers_window: pd.DataFrame,
+    df_orders_window_previous: pd.DataFrame,
+    df_customers_window_previous: pd.DataFrame,
+) -> t.Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     stats_current_period = summary_stats(df_orders_window, df_customers_window)
     stats_previous_period = summary_stats(
         df_orders_window_previous, df_customers_window_previous
@@ -60,7 +67,9 @@ def get_summary_stats(
     return stats_current_period, stats_previous_period, stats_delta, stats_upward_change
 
 
-def plot_customer_locations(df_customers, order_threshold, df_zipcode_lookup):
+def plot_customer_locations(
+    df_customers: pd.DataFrame, order_threshold: int, df_zipcode_lookup: pd.DataFrame
+) -> folium.Map:
     places = df_zipcode_lookup["state_name"].value_counts()
     places_mask = places > order_threshold
     popular_places = places[places_mask]
@@ -88,7 +97,7 @@ def plot_customer_locations(df_customers, order_threshold, df_zipcode_lookup):
     return m
 
 
-def plot_aov_histogram(df):
+def plot_aov_histogram(df: pd.DataFrame) -> alt.Chart:
     fig = (
         alt.Chart(df)
         .mark_bar(color="#00B3FE")
@@ -103,7 +112,9 @@ def plot_aov_histogram(df):
     return fig
 
 
-def plot_value_counts(series, title, scale="linear", bar_color="#5A5BC1"):
+def plot_value_counts(
+    series: pd.DataFrame, title: str, scale: str = "linear", bar_color: str = "#5A5BC1"
+) -> alt.Chart:
     fig = (
         alt.Chart(series)
         .mark_bar(color=bar_color)
@@ -117,11 +128,11 @@ def plot_value_counts(series, title, scale="linear", bar_color="#5A5BC1"):
     return fig
 
 
-def to_unordered_list(items):
+def to_unordered_list(items: t.List[str]) -> str:
     return f"""<ul style="margin:0;padding-left:20">{''.join([f'<li>{item}</li>' for item in items])}</ul>"""
 
 
-def frequent_product_combinations(df_items_window):
+def frequent_product_combinations(df_items_window: pd.DataFrame) -> pd.DataFrame:
     one_hot_encoded = (
         pd.get_dummies(df_items_window["Lineitem name"]).groupby("Name").sum()
     ).clip(upper=1)
@@ -186,11 +197,13 @@ def frequent_product_combinations(df_items_window):
     return frequent_combinations
 
 
-def get_month(x):
+def get_month(x: datetime.datetime) -> datetime.datetime:
     return datetime.datetime(x.year, x.month, 1)
 
 
-def cohort_analysis(df_orders_window):
+def cohort_analysis(
+    df_orders_window: pd.DataFrame,
+) -> t.Tuple[matplotlib.figure.Figure, matplotlib.figure.Figure]:
     df_orders_cohort = df_orders_window
 
     df_orders_cohort["order_month"] = df_orders_cohort["Created at"].apply(get_month)
@@ -199,7 +212,7 @@ def cohort_analysis(df_orders_window):
 
     df_orders_cohort["cohort_month"] = grouping.transform("min")
 
-    def get_date_int(df, column):
+    def get_date_int(df: pd.DataFrame, column: str) -> t.Tuple[int, int, int]:
         year = df[column].dt.year
         month = df[column].dt.month
         day = df[column].dt.day
@@ -239,8 +252,10 @@ def cohort_analysis(df_orders_window):
     retention.index = retention.index.strftime("%Y-%m")
 
     retention_fig = plt.figure(figsize=(16, 10))
-    plt.rc('font', size=20) 
-    plt.title("Retention Rate in percentage: Monthly Cohorts",)
+    plt.rc("font", size=20)
+    plt.title(
+        "Retention Rate in percentage: Monthly Cohorts",
+    )
     sns.heatmap(
         retention,
         annot=True,
@@ -249,8 +264,12 @@ def cohort_analysis(df_orders_window):
         vmin=0.0,
         vmax=0.6,
     )
-    plt.ylabel("Cohort Month",)
-    plt.xlabel("Cohort Index",)
+    plt.ylabel(
+        "Cohort Month",
+    )
+    plt.xlabel(
+        "Cohort Index",
+    )
     plt.yticks(rotation=360)
     plt.close()
 
