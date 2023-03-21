@@ -10,8 +10,6 @@ import seaborn as sns
 from folium import plugins
 from mlxtend.frequent_patterns import apriori, association_rules
 
-import calendar_heatmap  # switch to calendar_heatmap component
-
 warnings.filterwarnings("ignore")
 
 alt.data_transformers.enable("default", max_rows=None)
@@ -117,13 +115,6 @@ def plot_value_counts(series, title, scale="linear", bar_color="#5A5BC1"):
     )
 
     return fig
-
-
-def plot_calendar_heatmap(df_calmap):
-    df, year, last_sample_date = calendar_heatmap.wrangle_df(df_calmap, year=2023)
-    return calendar_heatmap.plot_heatmap(
-        "Orders", df, legend=True, color_scheme="cividis"
-    )
 
 
 def to_unordered_list(items):
