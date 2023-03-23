@@ -9,6 +9,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+from dominate.tags import *
 from folium import plugins
 from mlxtend.frequent_patterns import apriori, association_rules
 
@@ -129,7 +130,12 @@ def plot_value_counts(
 
 
 def to_unordered_list(items: t.List[str]) -> str:
-    return f"""<ul style="margin:0;padding-left:20">{''.join([f'<li>{item}</li>' for item in items])}</ul>"""
+    unordered_list = ul(style="margin:0;padding-left:20px")
+
+    for item in items:
+        unordered_list += li(item)
+
+    return unordered_list.render(pretty=False)
 
 
 def frequent_product_combinations(df_items_window: pd.DataFrame) -> pd.DataFrame:
