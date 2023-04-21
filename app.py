@@ -24,9 +24,7 @@ with open("data/zipcode_lookup.json", "r") as f:
 
 df_zipcode_lookup = pd.DataFrame(zipcode_lookup).T
 
-datetime_now = datetime.datetime(
-    2023, 4, 27, 10, 15, 0, 0, tzinfo=ZoneInfo("US/Pacific")
-)
+datetime_now = datetime.datetime(2023, 4, 27, 10, 15, 0, 0, tzinfo=ZoneInfo("US/Pacific"))
 
 a.set_timezones(df_orders, ["Created at"])
 a.set_timezones(df_items, ["Created at"])
@@ -36,7 +34,6 @@ locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
 
 
 def get_summary_stats(df_orders_window, df_customers_window, df_orders_window_previous, df_customers_window_previous):
-
     (
         stats_current_period,
         stats_previous_period,
@@ -56,12 +53,12 @@ def get_summary_stats(df_orders_window, df_customers_window, df_orders_window_pr
             f"{stats_delta[column].item():n}",
             is_upward_change=stats_upward_change[column].item(),
         )
-    
+
     block_summary_stats = dp.Group(
-        gen_bn("Orders Created", 'orders'),
-        gen_bn("Sales Completed", 'sales'),
-        gen_bn("New Customers", 'new_customers'),
-        gen_bn("Returning Customers", 'returning_customers'),
+        gen_bn("Orders Created", "orders"),
+        gen_bn("Sales Completed", "sales"),
+        gen_bn("New Customers", "new_customers"),
+        gen_bn("Returning Customers", "returning_customers"),
         dp.BigNumber(
             "Revenue Generated",
             locale.currency(stats_current_period["revenue"].item(), grouping=True),
@@ -79,21 +76,21 @@ def get_summary_stats(df_orders_window, df_customers_window, df_orders_window_pr
 
     return block_summary_stats
 
-def gen_audience_plots(df_orders_window):
 
+def gen_audience_plots(df_orders_window):
     orders_by_customer = a.orders_by_customer(df_orders_window)
 
     orders_by_day = a.orders_by_day(df_orders_window)
 
     audience_plots = dp.Group(
-        dp.Plot(a.plot_value_counts(
-            orders_by_customer,
-            title=f"Total number of orders: {len(df_orders_window)}",
-        )),
-        dp.Plot(a.plot_value_counts(
-            orders_by_day, title="Orders by day of week"
-        )),
-       # bug TODO dp.Plot(a.plot_aov_histogram(df_orders_window)),
+        dp.Plot(
+            a.plot_value_counts(
+                orders_by_customer,
+                title=f"Total number of orders: {len(df_orders_window)}",
+            )
+        ),
+        dp.Plot(a.plot_value_counts(orders_by_day, title="Orders by day of week")),
+        # bug TODO dp.Plot(a.plot_aov_histogram(df_orders_window)),
         columns=3,
     )
 
@@ -101,7 +98,6 @@ def gen_audience_plots(df_orders_window):
 
 
 def gen_top_product_plots(df_items_window, df_orders_window):
-    
     # Top Product
     top_product = textwrap.shorten(
         df_items_window["Lineitem name"].value_counts().index[0],
@@ -130,11 +126,7 @@ def gen_top_product_plots(df_items_window, df_orders_window):
         )
     )
 
-    top_city = (
-        df_zipcode_lookup[df_zipcode_lookup.index.isin(zipcodes)]["place_name"]
-        .value_counts()
-        .index[0]
-    )
+    top_city = df_zipcode_lookup[df_zipcode_lookup.index.isin(zipcodes)]["place_name"].value_counts().index[0]
     bn_top_city = dp.BigNumber("Top City", top_city)
     bn_top_city
 
@@ -149,23 +141,20 @@ def gen_top_product_plots(df_items_window, df_orders_window):
 
 
 def render(start_date, end_date):
+    window_end = pd.to_datetime(end_date).tz_localize("UTC")
+    window_start = pd.to_datetime(start_date).tz_localize("UTC")
 
-    window_end = pd.to_datetime(end_date).tz_localize('UTC')
-    window_start = pd.to_datetime(start_date).tz_localize('UTC')
-
-    df_orders_window, df_orders_window_previous = a.get_window(
-        df_orders, "Created at", window_start, window_end
-    )
-    df_items_window, df_items_window_previous = a.get_window(
-        df_items, "Created at", window_start, window_end
-    )
+    df_orders_window, df_orders_window_previous = a.get_window(df_orders, "Created at", window_start, window_end)
+    df_items_window, df_items_window_previous = a.get_window(df_items, "Created at", window_start, window_end)
     df_customers_window, df_customers_window_previous = a.get_window(
         df_customers, "first_order", window_start, window_end
     )
-    
-    summary_stats = get_summary_stats(df_orders_window, df_customers_window, df_orders_window_previous, df_customers_window_previous)
-    #locations = a.plot_customer_locations(df_customers, 20, df_zipcode_lookup)
-    
+
+    summary_stats = get_summary_stats(
+        df_orders_window, df_customers_window, df_orders_window_previous, df_customers_window_previous
+    )
+    # locations = a.plot_customer_locations(df_customers, 20, df_zipcode_lookup)
+
     top_10_products = (
         df_items_window["Lineitem name"]
         .value_counts()
@@ -175,40 +164,31 @@ def render(start_date, end_date):
         .rename(columns={0: "counts"})
         .head(10)
     )
-    
+
     frequent_combinations = a.frequent_product_combinations(df_items_window)
-    
+
     retention_fig, df1, avg_order_fig, df2 = a.cohort_analysis(df_orders_window)
-    
+
     v = dp.Blocks(
         audience_plots,
         dp.Select(
-            dp.Group(
-                audience_tops,
-                label='Top products'
-            ),
+            dp.Group(audience_tops, label="Top products"),
             dp.Group(
                 dp.Table(frequent_combinations),
-                dp.Plot(
-                    a.plot_value_counts(top_10_products, "Top 10 Products")
-                ),
+                dp.Plot(a.plot_value_counts(top_10_products, "Top 10 Products")),
                 columns=2,
                 widths=[6, 4],
-                label='Market basket analysis'
+                label="Market basket analysis",
             ),
-            dp.Group(dp.Plot(retention_fig), df1, dp.Plot(avg_order_fig), df2, columns=2, label='Retention analysis'),
-        )
+            dp.Group(dp.Plot(retention_fig), df1, dp.Plot(avg_order_fig), df2, columns=2, label="Retention analysis"),
+        ),
     )
-    
+
     return v
 
+
 df_calmap = (
-    (
-        df_orders["Created at"]
-        .dt.date.value_counts()
-        .rename_axis("Date")
-        .to_frame("Orders")
-    )
+    (df_orders["Created at"].dt.date.value_counts().rename_axis("Date").to_frame("Orders"))
     .reset_index()
     .rename(columns={0: "counts"})
 )
@@ -226,8 +206,8 @@ root = dp.View(
         controls=dict(
             start_date=dp.Date("start", label="End date", initial=datetime.date.today()),
             end_date=dp.Date("end", label="Start date", initial=datetime.date.today() - relativedelta(months=1)),
-        )
-    )
+        ),
+    ),
 )
 
 dp.serve_app(root)
