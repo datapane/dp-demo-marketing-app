@@ -33,8 +33,7 @@ def get_window(
 ) -> t.Tuple[pd.DataFrame, pd.DataFrame]:
     window = df[(df[date_col] > window_start) & (df[date_col] < window_end)]
     previous_period_window = df[
-        (df[date_col] > window_start - (window_end - window_start))
-        & (df[date_col] < window_start)
+        (df[date_col] > window_start - (window_end - window_start)) & (df[date_col] < window_start)
     ]
     return window, previous_period_window
 
@@ -46,9 +45,7 @@ def summary_stats(df_orders: pd.DataFrame, df_customers: pd.DataFrame) -> pd.Dat
     stats["aov"] = df_orders.Total.mean()
     stats["revenue"] = df_orders.Total.sum()
     stats["new_customers"] = len(df_customers)
-    stats["returning_customers"] = (
-        len(df_orders.Cust_ID.unique()) - stats["new_customers"]
-    )
+    stats["returning_customers"] = len(df_orders.Cust_ID.unique()) - stats["new_customers"]
     return pd.DataFrame.from_dict(stats, orient="index").T
 
 
@@ -59,9 +56,7 @@ def get_summary_stats(
     df_customers_window_previous: pd.DataFrame,
 ) -> t.Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     stats_current_period = summary_stats(df_orders_window, df_customers_window)
-    stats_previous_period = summary_stats(
-        df_orders_window_previous, df_customers_window_previous
-    )
+    stats_previous_period = summary_stats(df_orders_window_previous, df_customers_window_previous)
     stats_delta = stats_current_period - stats_previous_period
     stats_upward_change = stats_delta > 0
 
@@ -74,9 +69,7 @@ def plot_customer_locations(
     places = df_zipcode_lookup["state_name"].value_counts()
     places_mask = places > order_threshold
     popular_places = places[places_mask]
-    df_popular_zipcode_lookup = df_zipcode_lookup.loc[
-        df_zipcode_lookup["state_name"].isin(popular_places.index)
-    ]
+    df_popular_zipcode_lookup = df_zipcode_lookup.loc[df_zipcode_lookup["state_name"].isin(popular_places.index)]
 
     m = folium.Map(
         location=[
@@ -87,12 +80,8 @@ def plot_customer_locations(
         zoom_start=4,
     )
 
-    locations = list(
-        zip(df_popular_zipcode_lookup.latitude, df_popular_zipcode_lookup.longitude)
-    )
-    cluster = plugins.MarkerCluster(
-        locations=locations, popups=df_popular_zipcode_lookup["place_name"].tolist()
-    )
+    locations = list(zip(df_popular_zipcode_lookup.latitude, df_popular_zipcode_lookup.longitude))
+    cluster = plugins.MarkerCluster(locations=locations, popups=df_popular_zipcode_lookup["place_name"].tolist())
 
     m.add_child(cluster)
     return m
@@ -106,16 +95,12 @@ def plot_aov_histogram(df: pd.DataFrame) -> alt.Chart:
             alt.X("Total:Q", bin=True, axis=alt.Axis(format="$f"), title=None),
             alt.Y("count()", title=None),
         )
-        .properties(
-            title=f"Average order value {locale.currency(df.Total.mean(), grouping=True)}"
-        )
+        .properties(title=f"Average order value {locale.currency(df.Total.mean(), grouping=True)}")
     )
     return fig
 
 
-def plot_value_counts(
-    series: pd.DataFrame, title: str, scale: str = "linear", bar_color: str = "#5A5BC1"
-) -> alt.Chart:
+def plot_value_counts(series: pd.DataFrame, title: str, scale: str = "linear", bar_color: str = "#5A5BC1") -> alt.Chart:
     fig = (
         alt.Chart(series)
         .mark_bar(color=bar_color)
@@ -139,16 +124,14 @@ def to_unordered_list(items: t.List[str]) -> str:
 
 
 def frequent_product_combinations(df_items_window: pd.DataFrame) -> pd.DataFrame:
-    one_hot_encoded = (
-        pd.get_dummies(df_items_window["Lineitem name"]).groupby("Name").sum()
-    ).clip(upper=1)
+    one_hot_encoded = (pd.get_dummies(df_items_window["Lineitem name"]).groupby("Name").sum()).clip(upper=1)
 
     # filter for only orders with 2 or more items
     one_hot_encoded_filtered = one_hot_encoded[one_hot_encoded.sum(axis=1) >= 2]
 
-    frequent_itemsets = apriori(
-        one_hot_encoded_filtered, min_support=0.025, use_colnames=True
-    ).sort_values("support", ascending=False)
+    frequent_itemsets = apriori(one_hot_encoded_filtered, min_support=0.025, use_colnames=True).sort_values(
+        "support", ascending=False
+    )
 
     assoc_rules = (
         association_rules(frequent_itemsets, metric="lift", min_threshold=1)
@@ -157,9 +140,7 @@ def frequent_product_combinations(df_items_window: pd.DataFrame) -> pd.DataFrame
     )
 
     assoc_rules["Top Product Combinations"] = assoc_rules.apply(
-        lambda row: to_unordered_list(
-            sorted(list(row["antecedents"]) + list(row["consequents"]))
-        ),
+        lambda row: to_unordered_list(sorted(list(row["antecedents"]) + list(row["consequents"]))),
         axis=1,
     )
 
@@ -169,13 +150,9 @@ def frequent_product_combinations(df_items_window: pd.DataFrame) -> pd.DataFrame
         .sort_values("support", ascending=False)
     )
 
-    frequent_combinations["% of orders"] = round(
-        frequent_combinations["support"] * 100, 2
-    )
+    frequent_combinations["% of orders"] = round(frequent_combinations["support"] * 100, 2)
 
-    frequent_combinations = (
-        frequent_combinations.drop(["support"], axis=1).reset_index(drop=True).head(5)
-    )
+    frequent_combinations = frequent_combinations.drop(["support"], axis=1).reset_index(drop=True).head(5)
 
     frequent_combinations.index = frequent_combinations.index + 1
 
@@ -225,9 +202,7 @@ def cohort_analysis(
         return year, month, day
 
     # Getting the integers for date parts from the `InvoiceDay` column
-    transcation_year, transaction_month, _ = get_date_int(
-        df_orders_cohort, "order_month"
-    )
+    transcation_year, transaction_month, _ = get_date_int(df_orders_cohort, "order_month")
 
     # Getting the integers for date parts from the `CohortDay` column
     cohort_year, cohort_month, _ = get_date_int(df_orders_cohort, "cohort_month")
@@ -248,9 +223,7 @@ def cohort_analysis(
     cohort_data = cohort_data.reset_index()
 
     # Assigning column names to the dataframe created above
-    cohort_counts = cohort_data.pivot(
-        index="cohort_month", columns="cohort_index", values="Cust_ID"
-    )
+    cohort_counts = cohort_data.pivot(index="cohort_month", columns="cohort_index", values="Cust_ID")
 
     ### Retention rate
     cohort_sizes = cohort_counts.iloc[:, 0]
@@ -283,9 +256,7 @@ def cohort_analysis(
     grouping = df_orders_cohort.groupby(["cohort_month", "cohort_index"])
     cohort_data = grouping["Total"].mean()
     cohort_data = cohort_data.reset_index()
-    average_order = cohort_data.pivot(
-        index="cohort_month", columns="cohort_index", values="Total"
-    )
+    average_order = cohort_data.pivot(index="cohort_month", columns="cohort_index", values="Total")
 
     average_standard_cost = average_order.round(1)
     average_standard_cost.index = average_standard_cost.index.strftime("%Y-%m")

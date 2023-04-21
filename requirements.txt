@@ -1,7 +1,6 @@
-datapane==0.16.1
-datapane-components==2023.3.20
-jupyterlab==3.6.1
-folium==0.14.0
-pgeocode==0.4.0
-mlxtend==0.21.0
-dominate==2.7.0
+datapane>=0.16.1
+datapane-components>=2023.3.20
+folium>=0.14.0
+pgeocode>=0.4.0
+mlxtend>=0.21.0
+dominate>=2.7.0
