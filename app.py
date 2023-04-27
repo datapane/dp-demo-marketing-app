@@ -12,9 +12,9 @@ import analytics as a
 
 ################################################################################
 # Global Dataset
-df_orders = pd.read_csv("data/order.csv").set_index("Name")
-df_items = pd.read_csv("data/items.csv", low_memory=False).set_index("Name")
-df_customers = pd.read_csv("data/cust.csv").set_index("Cust_ID")
+df_orders = pd.read_csv("data/order.csv.gz").set_index("Name")
+df_items = pd.read_csv("data/items.csv.gz", low_memory=False).set_index("Name")
+df_customers = pd.read_csv("data/cust.csv.gz").set_index("Cust_ID")
 with open("data/zipcode_lookup.json", "r") as f:
     df_zipcode_lookup = pd.DataFrame(json.load(f)).T
 
