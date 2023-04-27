@@ -243,7 +243,10 @@ def render(start_date: datetime.date, end_date: datetime.date, all_data: bool) -
 
     dp.save_report(tab1, "sales_report.html")
 
-    return dp.View(dp.Attachment(file="sales_report.html"), dp.Select(tab1, tab2, tab3, tab4))
+    return dp.View(
+        dp.Toggle(dp.Attachment(file="sales_report.html"), name="download", label="Download standalone Report"),
+        dp.Select(tab1, tab2, tab3, tab4, name="main_results"),
+    )
 
 
 initial_view = dp.View(
